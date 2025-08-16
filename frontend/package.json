@@ -38,5 +38,5 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "https://note-summarizer-mangodesk-task.onrender.com"
+  "proxy": "https://note-summarizer-mangodesk-task.onrender.com/api/"
 }
