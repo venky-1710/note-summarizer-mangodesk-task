@@ -1,0 +1,243 @@
+import nodemailer from 'nodemailer';
+
+class EmailService {
+  constructor() {
+    this.transporter = null;
+    this.initialized = false;
+  }
+
+  init() {
+    if (!this.initialized) {
+      this.transporter = this.createTransporter();
+      this.initialized = true;
+    }
+    return this.transporter;
+  }
+
+  createTransporter() {
+    console.log('🔧 Creating email transporter...');
+    console.log('📧 Email configuration:', {
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      user: process.env.EMAIL_USER,
+      passConfigured: !!process.env.EMAIL_PASS
+    });
+
+    if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.warn('⚠️ Email configuration not complete. Email sharing will not work.');
+      console.warn('Missing:', {
+        host: !process.env.EMAIL_HOST,
+        user: !process.env.EMAIL_USER,
+        pass: !process.env.EMAIL_PASS
+      });
+      return null;
+    }
+
+    // Gmail-optimized configuration
+    const config = {
+      service: 'gmail', // Use Gmail service instead of manual SMTP
+      host: process.env.EMAIL_HOST,
+      port: parseInt(process.env.EMAIL_PORT) || 587,
+      secure: false, // false for 587, true for 465
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS.trim() // Remove any whitespace
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    };
+
+    console.log('✅ Email transporter configuration ready');
+    return nodemailer.createTransport(config);
+  }
+
+  async sendSummary(recipients, summary, title) {
+    // Initialize transporter if not already done
+    const transporter = this.init();
+    
+    if (!transporter) {
+      throw new Error('Email service not configured. Please check your environment variables.');
+    }
+
+    try {
+      const emailContent = this.generateEmailContent(summary, title);
+      
+      const mailOptions = {
+        from: {
+          name: 'Meeting Notes Summarizer',
+          address: process.env.EMAIL_USER
+        },
+        to: recipients.join(', '),
+        subject: `Meeting Summary: ${title}`,
+        html: emailContent,
+        text: this.generatePlainTextContent(summary, title)
+      };
+
+      const result = await transporter.sendMail(mailOptions);
+      
+      return {
+        success: true,
+        messageId: result.messageId,
+        recipients: recipients
+      };
+    } catch (error) {
+      console.error('Email sending error:', error);
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+  }
+
+  generateEmailContent(summary, title) {
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Meeting Summary: ${title}</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f8f9fa;
+            }
+            .container {
+                background-color: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            .header {
+                text-align: center;
+                border-bottom: 3px solid #007bff;
+                padding-bottom: 20px;
+                margin-bottom: 30px;
+            }
+            .header h1 {
+                color: #007bff;
+                margin: 0;
+                font-size: 28px;
+            }
+            .content {
+                margin-bottom: 30px;
+            }
+            .summary-content {
+                background-color: #f8f9fa;
+                padding: 25px;
+                border-radius: 8px;
+                border-left: 4px solid #007bff;
+                white-space: pre-wrap;
+                font-size: 16px;
+                line-height: 1.8;
+            }
+            .footer {
+                text-align: center;
+                color: #6c757d;
+                font-size: 14px;
+                border-top: 1px solid #dee2e6;
+                padding-top: 20px;
+                margin-top: 30px;
+            }
+            .footer a {
+                color: #007bff;
+                text-decoration: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>📝 Meeting Summary</h1>
+                <p style="color: #6c757d; margin: 10px 0 0 0; font-size: 18px;">${title}</p>
+            </div>
+            
+            <div class="content">
+                <div class="summary-content">
+${summary}
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>This summary was generated by the <strong>AI-Powered Meeting Notes Summarizer</strong></p>
+                <p>Generated on ${new Date().toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+  }
+
+  generatePlainTextContent(summary, title) {
+    return `
+MEETING SUMMARY: ${title}
+
+${summary}
+
+---
+This summary was generated by the AI-Powered Meeting Notes Summarizer
+Generated on ${new Date().toLocaleDateString('en-US', { 
+  weekday: 'long', 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+})}
+    `.trim();
+  }
+
+  async testConnection() {
+    // Initialize transporter if not already done
+    const transporter = this.init();
+    
+    if (!transporter) {
+      return {
+        success: false,
+        error: 'Email service not configured'
+      };
+    }
+
+    try {
+      await transporter.verify();
+      return {
+        success: true,
+        message: 'Email service connection successful'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  validateEmailAddresses(emails) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmails = [];
+    const invalidEmails = [];
+
+    emails.forEach(email => {
+      const cleanEmail = email.trim().toLowerCase();
+      if (emailRegex.test(cleanEmail)) {
+        validEmails.push(cleanEmail);
+      } else {
+        invalidEmails.push(email);
+      }
+    });
+
+    return { validEmails, invalidEmails };
+  }
+}
+
+export default new EmailService();
