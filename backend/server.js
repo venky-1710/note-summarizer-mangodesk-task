@@ -50,6 +50,7 @@ app.use('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`⏰ No timeouts configured - server will wait indefinitely`);
   console.log(`📧 Email config check:`, {
     host: process.env.EMAIL_HOST || 'NOT SET',
     user: process.env.EMAIL_USER || 'NOT SET',

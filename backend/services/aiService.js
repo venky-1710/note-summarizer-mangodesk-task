@@ -47,7 +47,7 @@ class AIService {
         ],
         model: "mixtral-8x7b-32768", // Using Mixtral model for better performance
         temperature: 0.3, // Lower temperature for more consistent outputs
-        max_tokens: 2048,
+        max_tokens: 4096, // Increased token limit for longer summaries
         top_p: 1,
         stop: null
       });
